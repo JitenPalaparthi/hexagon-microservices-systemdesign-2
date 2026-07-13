@@ -1,0 +1,163 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: pubsub-postgres
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppassword
+      POSTGRES_DB: ordersdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/001-init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d ordersdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:4.1.2
+    container_name: pubsub-kafka
+    hostname: kafka
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+    restart: unless-stopped
+
+  kafka-init:
+    image: apache/kafka:4.1.2
+    container_name: pubsub-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    entrypoint:
+      - /bin/bash
+      - -ec
+    command: |
+      echo "Waiting for Kafka broker..."
+
+      READY=false
+
+      for attempt in {1..30}; do
+        if /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka:9092 \
+          --list >/dev/null 2>&1; then
+          echo "Kafka is ready."
+          READY=true
+          break
+        fi
+
+        echo "Kafka is not ready yet. Attempt ${attempt}/30"
+        sleep 5
+      done
+
+      if [ "$READY" != "true" ]; then
+        echo "Kafka did not become ready."
+        exit 1
+      fi
+
+      echo "Creating topic orders.created.v1..."
+
+      /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server kafka:9092 \
+        --create \
+        --if-not-exists \
+        --topic orders.created.v1 \
+        --partitions 3 \
+        --replication-factor 1
+
+      echo "Verifying Kafka topic..."
+
+      /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server kafka:9092 \
+        --describe \
+        --topic orders.created.v1
+
+      echo "Kafka initialization completed successfully."
+
+  order-api:
+    build:
+      context: .
+      dockerfile: src/OrderApi/Dockerfile
+    container_name: pubsub-order-api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+
+      ConnectionStrings__OrdersDatabase: Host=postgres;Port=5432;Database=ordersdb;Username=appuser;Password=apppassword
+
+      Kafka__BootstrapServers: kafka:9092
+      Kafka__Topic: orders.created.v1
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
+    restart: unless-stopped
+
+  order-consumer:
+    build:
+      context: .
+      dockerfile: src/OrderConsumer/Dockerfile
+    container_name: pubsub-order-consumer
+    environment:
+      ConnectionStrings__ConsumerDatabase: Host=postgres;Port=5432;Database=consumerdb;Username=appuser;Password=apppassword
+
+      Kafka__BootstrapServers: kafka:9092
+      Kafka__Topic: orders.created.v1
+      Kafka__ConsumerGroup: order-processor-v1
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  kafka-data:
