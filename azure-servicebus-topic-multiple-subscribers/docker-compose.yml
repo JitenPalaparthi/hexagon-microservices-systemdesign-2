@@ -1,0 +1,99 @@
+name: azure-servicebus-dotnet10-topic-subscribers
+
+x-subscriber-common: &subscriber-common
+  build:
+    context: .
+    dockerfile: src/TopicSubscriber/Dockerfile
+  restart: unless-stopped
+  environment: &subscriber-environment
+    SERVICEBUS_CONNECTION_STRING: Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+    SERVICEBUS_TOPIC_NAME: orders-topic
+  depends_on:
+    servicebus-emulator:
+      condition: service_started
+  networks:
+    - servicebus-network
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: ${ACCEPT_EULA:-Y}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Local_ServiceBus_2026!}
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '$${MSSQL_SA_PASSWORD}' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - servicebus-network
+
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    platform: linux/amd64
+    pull_policy: always
+    volumes:
+      - ./config/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
+    ports:
+      - "5672:5672"
+      - "${EMULATOR_HTTP_PORT:-5300}:${EMULATOR_HTTP_PORT:-5300}"
+    environment:
+      SQL_SERVER: mssql
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Local_ServiceBus_2026!}
+      ACCEPT_EULA: ${ACCEPT_EULA:-Y}
+      EMULATOR_HTTP_PORT: ${EMULATOR_HTTP_PORT:-5300}
+      SQL_WAIT_INTERVAL: ${SQL_WAIT_INTERVAL:-15}
+    depends_on:
+      mssql:
+        condition: service_started
+    networks:
+      servicebus-network:
+        aliases:
+          - servicebus-emulator
+
+  inventory-subscriber:
+    <<: *subscriber-common
+    environment:
+      <<: *subscriber-environment
+      SERVICEBUS_SUBSCRIPTION_NAME: inventory-subscription
+      SUBSCRIBER_NAME: inventory-service
+
+  billing-subscriber:
+    <<: *subscriber-common
+    environment:
+      <<: *subscriber-environment
+      SERVICEBUS_SUBSCRIPTION_NAME: billing-subscription
+      SUBSCRIBER_NAME: billing-service
+
+  notification-subscriber:
+    <<: *subscriber-common
+    environment:
+      <<: *subscriber-environment
+      SERVICEBUS_SUBSCRIPTION_NAME: notification-subscription
+      SUBSCRIBER_NAME: notification-service
+
+  order-publisher:
+    build:
+      context: .
+      dockerfile: src/OrderPublisher/Dockerfile
+    environment:
+      SERVICEBUS_CONNECTION_STRING: Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+      SERVICEBUS_TOPIC_NAME: orders-topic
+      MESSAGE_COUNT: ${MESSAGE_COUNT:-10}
+      SEND_INTERVAL_MS: ${SEND_INTERVAL_MS:-700}
+    depends_on:
+      servicebus-emulator:
+        condition: service_started
+      inventory-subscriber:
+        condition: service_started
+      billing-subscriber:
+        condition: service_started
+      notification-subscriber:
+        condition: service_started
+    networks:
+      - servicebus-network
+
+networks:
+  servicebus-network:

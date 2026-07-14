@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/OrderPublisher/OrderPublisher.csproj" />
+  <Project Path="src/TopicSubscriber/TopicSubscriber.csproj" />
+</Solution>
