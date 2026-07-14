@@ -69,33 +69,18 @@ services:
       kafka:
         condition: service_healthy
     restart: "no"
-    entrypoint:
-      - /bin/bash
-      - -ec
+    entrypoint: ["/bin/bash", "-ec"]
     command: |
-      echo "Waiting for Kafka broker..."
+      echo "Waiting until Kafka accepts requests..."
 
-      READY=false
-
-      for attempt in {1..30}; do
-        if /opt/kafka/bin/kafka-topics.sh \
-          --bootstrap-server kafka:9092 \
-          --list >/dev/null 2>&1; then
-          echo "Kafka is ready."
-          READY=true
-          break
-        fi
-
-        echo "Kafka is not ready yet. Attempt ${attempt}/30"
-        sleep 5
+      until /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server kafka:9092 \
+        --list >/dev/null 2>&1; do
+        echo "Kafka is not ready yet; retrying in 3 seconds..."
+        sleep 3
       done
 
-      if [ "$READY" != "true" ]; then
-        echo "Kafka did not become ready."
-        exit 1
-      fi
-
-      echo "Creating topic orders.created.v1..."
+      echo "Kafka is ready. Creating topic orders.created.v1..."
 
       /opt/kafka/bin/kafka-topics.sh \
         --bootstrap-server kafka:9092 \
@@ -105,8 +90,12 @@ services:
         --partitions 3 \
         --replication-factor 1
 
-      echo "Verifying Kafka topic..."
+      echo "Topic list:"
+      /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server kafka:9092 \
+        --list
 
+      echo "Topic details:"
       /opt/kafka/bin/kafka-topics.sh \
         --bootstrap-server kafka:9092 \
         --describe \

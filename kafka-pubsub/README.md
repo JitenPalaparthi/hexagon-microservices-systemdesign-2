@@ -1,3 +1,9 @@
+# Corrected Kafka Pub/Sub Project
+
+The Kafka initializer was corrected to avoid Docker Compose variable interpolation. The earlier `${attempt}` and `$READY` shell expressions were expanded by Compose before Bash executed, causing topic initialization to fail. The initializer now uses a variable-free `until` loop.
+
+For exact execution and verification commands, see [`STEP-BY-STEP.md`](STEP-BY-STEP.md).
+
 # .NET 10 REST + Kafka Pub/Sub Example
 
 A ready-to-run event-driven sample with:
