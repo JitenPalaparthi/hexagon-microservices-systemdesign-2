@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/OrderScheduler/OrderScheduler.csproj" />
+  <Project Path="src/OrderConsumer/OrderConsumer.csproj" />
+  <Project Path="src/ScheduledMessageCanceller/ScheduledMessageCanceller.csproj" />
+</Solution>
