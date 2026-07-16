@@ -103,7 +103,7 @@ curl -i -X DELETE http://localhost:8080/api/products/6
 ## gRPC tests with Postman
 
 1. Create a new gRPC request.
-2. Server URL: `localhost:5000`.
+2. Server URL: `localhost:5001`.
 3. Disable TLS; this endpoint uses h2c.
 4. Import `ProductGrpcServer/Protos/products.proto` if reflection is not automatically discovered through NGINX.
 5. Select a method such as `products.v1.ProductService/ListProducts`.

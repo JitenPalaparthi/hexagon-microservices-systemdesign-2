@@ -8,7 +8,7 @@
     order management
     billing
     reporting 
-    invoicing
+    invoice
     payment
     inventory
     shipping
@@ -19,6 +19,7 @@
    - what are the steps to be taken inorder to make invoice as a separate microservice 
 
 www.myecommerce.com
+
 
 
     

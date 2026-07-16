@@ -1,0 +1,60 @@
+syntax = "proto3";
+package products.v1;
+option csharp_namespace = "ProductGrpcServer.Grpc";
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+service ProductService {
+  rpc ListProducts(google.protobuf.Empty) returns (ListProductsReply) {
+    option (google.api.http) = { get: "/api/products" };
+  }
+
+  rpc GetProduct(GetProductRequest) returns (ProductReply) {
+    option (google.api.http) = { get: "/api/products/{id}" };
+  }
+
+  rpc CreateProduct(CreateProductRequest) returns (ProductReply) {
+    option (google.api.http) = {
+      post: "/api/products"
+      body: "*"
+    };
+  }
+
+  rpc UpdateProduct(UpdateProductRequest) returns (ProductReply) {
+    option (google.api.http) = {
+      put: "/api/products/{id}"
+      body: "*"
+    };
+  }
+
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductReply) {
+    option (google.api.http) = { delete: "/api/products/{id}" };
+  }
+}
+
+message GetProductRequest { int32 id = 1; }
+message DeleteProductRequest { int32 id = 1; }
+
+message CreateProductRequest {
+  string name = 1;
+  string description = 2;
+  double price = 3;
+}
+
+message UpdateProductRequest {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+}
+
+message ProductReply {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+}
+
+message ListProductsReply { repeated ProductReply products = 1; }
+message DeleteProductReply { bool deleted = 1; int32 id = 2; }

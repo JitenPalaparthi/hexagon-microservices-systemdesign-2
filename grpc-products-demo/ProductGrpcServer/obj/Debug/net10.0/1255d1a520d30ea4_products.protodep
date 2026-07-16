@@ -1,4 +1,0 @@
-obj/Debug/net10.0/Protos/Products.cs \
-obj/Debug/net10.0/Protos/ProductsGrpc.cs: /Users/jiten/.nuget/packages/grpc.tools/2.68.1/build/native/include/google/protobuf/empty.proto\
- /Users/jiten/.nuget/packages/grpc.tools/2.68.1/build/native/include/google/protobuf/timestamp.proto\
- Protos/products.proto

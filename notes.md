@@ -1,0 +1,12 @@
+
+- raft
+- gossip protocol
+- association
+- aggregation
+- composition
+- dependency
+- aggregation pattern
+- queue vs pubsub
+- at most once
+- at least once
+- only once

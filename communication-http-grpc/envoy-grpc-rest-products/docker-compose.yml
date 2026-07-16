@@ -1,0 +1,26 @@
+services:
+  product-grpc:
+    build:
+      context: ./ProductGrpcServer
+    container_name: product-grpc
+    expose:
+      - "5001"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5001"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  envoy:
+    image: envoyproxy/envoy:v1.35-latest
+    container_name: product-envoy
+    depends_on:
+      product-grpc:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "9901:9901"
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ./envoy/product.pb:/etc/envoy/product.pb:ro
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]

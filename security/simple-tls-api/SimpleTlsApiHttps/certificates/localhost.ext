@@ -1,0 +1,11 @@
+authorityKeyIdentifier = keyid,issuer
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alternative_names
+
+[alternative_names]
+DNS.1 = localhost
+DNS.2 = host.docker.internal
+IP.1 = 127.0.0.1
+IP.2 = ::1
