@@ -1,5 +1,6 @@
 services:
   product-grpc:
+    platform: linux/amd64
     build:
       context: ./ProductGrpcServer
     container_name: product-grpc

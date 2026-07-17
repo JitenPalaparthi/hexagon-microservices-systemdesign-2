@@ -1,0 +1,5 @@
+certs/**/*.key
+certs/**/*.crt
+certs/**/*.srl
+bin/
+obj/

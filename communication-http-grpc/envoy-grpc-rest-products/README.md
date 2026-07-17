@@ -204,3 +204,48 @@ docker compose down
 ```
 
 Reset the in-memory products by restarting the containers.
+
+
+## Apple Silicon: `protoc` exit code 139
+
+The project uses `Grpc.Tools` 2.82.0. If Docker Desktop still selects a problematic ARM64 code generator, rebuild the service using AMD64 emulation:
+
+```bash
+docker compose down
+docker builder prune -f
+docker compose build --no-cache --build-arg BUILDPLATFORM=linux/amd64 product-grpc
+docker compose up -d
+```
+
+Alternatively, temporarily add this under the `product-grpc` service in `docker-compose.yml`:
+
+```yaml
+platform: linux/amd64
+```
+
+Then run:
+
+```bash
+docker compose up --build -d
+```
+
+## Apple Silicon build note
+
+The gRPC service is intentionally built as `linux/amd64`. This avoids the Linux ARM64 `protoc` segmentation fault (`exit code 139`) observed with `Grpc.Tools` on some Docker Desktop / Apple Silicon combinations. Docker Desktop runs it through emulation.
+
+The project uses valid NuGet package versions:
+
+```xml
+<PackageReference Include="Grpc.AspNetCore" Version="2.80.0" />
+<PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.80.0" />
+<PackageReference Include="Grpc.Tools" Version="2.80.0" PrivateAssets="All" />
+```
+
+Rebuild without cached layers:
+
+```bash
+docker compose down --remove-orphans
+docker builder prune -f
+docker compose build --no-cache
+docker compose up -d
+```

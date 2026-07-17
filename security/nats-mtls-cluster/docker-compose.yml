@@ -1,0 +1,71 @@
+services:
+  nats1:
+    image: nats:2.11-alpine
+    container_name: nats1
+    hostname: nats1
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./config/nats1.conf:/etc/nats/nats.conf:ro
+      - ./certs/ca/ca.crt:/etc/nats/certs/ca.crt:ro
+      - ./certs/nats1/nats1.crt:/etc/nats/certs/server.crt:ro
+      - ./certs/nats1/nats1.key:/etc/nats/certs/server.key:ro
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks: [nats-net]
+    restart: unless-stopped
+
+  nats2:
+    image: nats:2.11-alpine
+    container_name: nats2
+    hostname: nats2
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./config/nats2.conf:/etc/nats/nats.conf:ro
+      - ./certs/ca/ca.crt:/etc/nats/certs/ca.crt:ro
+      - ./certs/nats2/nats2.crt:/etc/nats/certs/server.crt:ro
+      - ./certs/nats2/nats2.key:/etc/nats/certs/server.key:ro
+    ports:
+      - "4223:4222"
+      - "8223:8222"
+    networks: [nats-net]
+    restart: unless-stopped
+
+  nats3:
+    image: nats:2.11-alpine
+    container_name: nats3
+    hostname: nats3
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./config/nats3.conf:/etc/nats/nats.conf:ro
+      - ./certs/ca/ca.crt:/etc/nats/certs/ca.crt:ro
+      - ./certs/nats3/nats3.crt:/etc/nats/certs/server.crt:ro
+      - ./certs/nats3/nats3.key:/etc/nats/certs/server.key:ro
+    ports:
+      - "4224:4222"
+      - "8224:8222"
+    networks: [nats-net]
+    restart: unless-stopped
+
+  subscriber:
+    build:
+      context: ./client
+    container_name: nats-subscriber
+    environment:
+      MODE: subscribe
+      NATS_URL: tls://nats1:4222,tls://nats2:4222,tls://nats3:4222
+      NATS_SUBJECT: orders.created
+      NATS_CA_FILE: /certs/ca.crt
+      NATS_CERT_FILE: /certs/client.crt
+      NATS_KEY_FILE: /certs/client.key
+    volumes:
+      - ./certs/ca/ca.crt:/certs/ca.crt:ro
+      - ./certs/client/client.crt:/certs/client.crt:ro
+      - ./certs/client/client.key:/certs/client.key:ro
+    depends_on: [nats1, nats2, nats3]
+    networks: [nats-net]
+    restart: unless-stopped
+
+networks:
+  nats-net:
+    name: nats-mtls-net
