@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: products-demo
+type: Opaque
+stringData:
+  POSTGRES_DB: productsdb
+  POSTGRES_USER: appuser
+  POSTGRES_PASSWORD: apppassword
+  connectionString: Host=postgres;Port=5432;Database=productsdb;Username=appuser;Password=apppassword
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: products-demo
+data:
+  nginx.conf: |
+    events {}
+
+    http {
+      upstream rest_products {
+        least_conn;
+        server product-rest:8080;
+      }
+
+      upstream grpc_products {
+        least_conn;
+        server product-grpc:8080;
+      }
+
+      server {
+        listen 8080;
+        server_name _;
+
+        location /api/ {
+          proxy_pass http://rest_products;
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location = /health/rest {
+          proxy_pass http://rest_products/health;
+        }
+      }
+
+      server {
+        listen 5000 http2;
+        server_name _;
+
+        location / {
+          grpc_pass grpc://grpc_products;
+          grpc_set_header X-Real-IP $remote_addr;
+          grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          grpc_read_timeout 1h;
+          grpc_send_timeout 1h;
+        }
+      }
+    }

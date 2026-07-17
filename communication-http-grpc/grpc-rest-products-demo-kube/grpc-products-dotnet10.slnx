@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ProductGrpcServer/ProductGrpcServer.csproj" />
+  <Project Path="ProductRestServer/ProductRestServer.csproj" />
+</Solution>
